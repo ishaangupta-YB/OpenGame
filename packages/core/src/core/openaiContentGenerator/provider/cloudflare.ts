@@ -9,7 +9,7 @@ import { DefaultOpenAICompatibleProvider } from './default.js';
 import type { ContentGeneratorConfig } from '../../contentGenerator.js';
 
 const KIMI_TOOL_CALL_REMINDER =
-  'When the next step requires a tool, call the tool directly in this response. Do not describe, announce, or promise a tool call in text instead of emitting it.';
+  'When the next step requires a tool, emit an OpenAI tool call directly in this response. Do not describe, announce, or promise a tool call in text or reasoning instead of emitting it.';
 
 /**
  * Provider for Cloudflare Workers AI's OpenAI-compatible endpoint.
@@ -84,6 +84,32 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
     ];
   }
 
+  private static applyKimiToolRequestDefaults(
+    request: OpenAI.Chat.ChatCompletionCreateParams & Record<string, unknown>,
+  ): void {
+    if (request.tool_choice === undefined) {
+      request.tool_choice = 'auto';
+    }
+
+    if (request.parallel_tool_calls === undefined) {
+      request.parallel_tool_calls = false;
+    }
+
+    const chatTemplateKwargs =
+      typeof request.chat_template_kwargs === 'object' &&
+      request.chat_template_kwargs !== null &&
+      !Array.isArray(request.chat_template_kwargs)
+        ? { ...(request.chat_template_kwargs as Record<string, unknown>) }
+        : {};
+
+    // Kimi K2.6 can stream long reasoning-only chunks before never emitting the
+    // tool call. For agent turns with tools, prefer direct tool-call behavior.
+    if (chatTemplateKwargs['thinking'] === undefined) {
+      chatTemplateKwargs['thinking'] = false;
+    }
+    request.chat_template_kwargs = chatTemplateKwargs;
+  }
+
   override buildRequest(
     request: OpenAI.Chat.ChatCompletionCreateParams,
     userPromptId: string,
@@ -108,9 +134,7 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
       ) &&
       CloudflareOpenAICompatibleProvider.hasTools(adapted)
     ) {
-      if (adapted.tool_choice === undefined) {
-        adapted.tool_choice = 'auto';
-      }
+      CloudflareOpenAICompatibleProvider.applyKimiToolRequestDefaults(adapted);
       adapted.messages =
         CloudflareOpenAICompatibleProvider.addKimiToolCallReminder(
           adapted.messages,

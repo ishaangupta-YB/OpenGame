@@ -175,7 +175,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
       expect((result['tools'] as unknown[]).length).toBe(1);
     });
 
-    it('adds explicit auto tool choice and a Kimi tool-call reminder when tools are present', () => {
+    it('adds Kimi tool-call request defaults when tools are present', () => {
       const original = {
         model: '@cf/moonshotai/kimi-k2.6',
         messages: [
@@ -202,16 +202,20 @@ describe('CloudflareOpenAICompatibleProvider', () => {
       } | undefined;
 
       expect(result['tool_choice']).toBe('auto');
+      expect(result['parallel_tool_calls']).toBe(false);
+      expect(result['chat_template_kwargs']).toEqual({ thinking: false });
       expect(firstMessage?.role).toBe('system');
       expect(firstMessage?.content).toContain('Base system prompt.');
-      expect(firstMessage?.content).toContain('call the tool directly');
+      expect(firstMessage?.content).toContain('emit an OpenAI tool call');
     });
 
-    it('does not overwrite explicit Kimi tool choice', () => {
+    it('does not overwrite explicit Kimi tool request settings', () => {
       const original = {
         model: '@cf/moonshotai/kimi-k2.6',
         messages: [{ role: 'user', content: 'Build a Snake clone.' }],
         tool_choice: 'required',
+        parallel_tool_calls: true,
+        chat_template_kwargs: { thinking: true },
         tools: [
           {
             type: 'function',
@@ -226,6 +230,8 @@ describe('CloudflareOpenAICompatibleProvider', () => {
       >;
 
       expect(result['tool_choice']).toBe('required');
+      expect(result['parallel_tool_calls']).toBe(true);
+      expect(result['chat_template_kwargs']).toEqual({ thinking: true });
     });
   });
 });

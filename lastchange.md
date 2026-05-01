@@ -56,6 +56,29 @@ This is deliberately limited to Cloudflare Kimi K2.6 requests with tools.
 Plain OpenAI, non-Kimi Cloudflare models, and requests without tools are left
 unchanged.
 
+## Follow-up After `still didn't work`
+
+The important runtime detail is that `opengame` executes the built CLI at
+`dist/cli.js` (`package.json -> bin.opengame`), while `dist/` is gitignored.
+So after pulling source changes on EC2, the global/linked `opengame` command can
+still be running an old build unless you rebuild and relink/reinstall it.
+
+The EC2 transcript is also not a missing-env-var failure. Kimi is receiving the
+prompt and streaming reasoning like "Let me check files", but it is not emitting
+an OpenAI `tool_calls` delta. OpenGame then has no executable tool request to
+run and the stream validator reaches `NO_RESPONSE_TEXT`.
+
+Latest code hardening:
+
+- For Cloudflare Kimi K2.6 requests that include tools, default
+  `chat_template_kwargs.thinking` to `false` unless the caller explicitly set it.
+  This avoids reasoning-only streams during agent/tool turns.
+- Default `parallel_tool_calls` to `false` for those Kimi tool requests to keep
+  tool-call accumulation deterministic.
+- Keep `tool_choice: "auto"` and the provider-scoped tool-call reminder.
+
+This is intentionally scoped to Cloudflare Kimi K2.6 tool requests.
+
 ### 1) Cloudflare provider policy aligned to minimal normalization
 File:
 - `packages/core/src/core/openaiContentGenerator/provider/cloudflare.ts`
