@@ -575,14 +575,17 @@ export class GeminiChat {
     let hasFinishReason = false;
 
     for await (const chunk of streamResponse) {
-      hasFinishReason =
+      const chunkHasFinishReason =
         chunk?.candidates?.some((candidate) => candidate.finishReason) ?? false;
+      // Streams often end with usage-only chunks (no choices): do not wipe a
+      // finish reason observed on earlier chunks when the HTTP stream continues.
+      hasFinishReason = hasFinishReason || chunkHasFinishReason;
       if (isValidResponse(chunk)) {
         const content = chunk.candidates?.[0]?.content;
         if (content?.parts) {
-          if (content.parts.some((part) => part.functionCall)) {
-            hasToolCall = true;
-          }
+          hasToolCall =
+            hasToolCall ||
+            content.parts.some((part) => part.functionCall !== undefined);
 
           // Collect all parts for recording
           allModelParts.push(...content.parts);

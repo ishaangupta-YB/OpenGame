@@ -88,7 +88,7 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
     request: OpenAI.Chat.ChatCompletionCreateParams & Record<string, unknown>,
   ): void {
     if (request.tool_choice === undefined) {
-      request.tool_choice = 'auto';
+      request.tool_choice = 'required';
     }
 
     if (request.parallel_tool_calls === undefined) {

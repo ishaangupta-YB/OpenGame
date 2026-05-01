@@ -201,7 +201,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         content?: string;
       } | undefined;
 
-      expect(result['tool_choice']).toBe('auto');
+      expect(result['tool_choice']).toBe('required');
       expect(result['parallel_tool_calls']).toBe(false);
       expect(result['chat_template_kwargs']).toEqual({ thinking: false });
       expect(firstMessage?.role).toBe('system');

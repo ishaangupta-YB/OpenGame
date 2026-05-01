@@ -748,6 +748,48 @@ describe('GeminiChat', () => {
       ).resolves.not.toThrow();
     });
 
+    it('should keep finishReason when a trailing chunk is usage-only', async () => {
+      const stream = (async function* () {
+        yield {
+          candidates: [
+            {
+              content: {
+                role: 'model',
+                parts: [{ text: 'answer with usage tail' }],
+              },
+              finishReason: 'STOP',
+            },
+          ],
+        } as unknown as GenerateContentResponse;
+        yield {
+          candidates: [],
+          usageMetadata: {
+            promptTokenCount: 10,
+            candidatesTokenCount: 5,
+            totalTokenCount: 15,
+          },
+        } as unknown as GenerateContentResponse;
+      })();
+
+      vi.mocked(mockContentGenerator.generateContentStream).mockResolvedValue(
+        stream,
+      );
+
+      const consumed = await chat.sendMessageStream(
+        'test-model',
+        { message: 'hello' },
+        'prompt-id-1',
+      );
+
+      await expect(
+        (async () => {
+          for await (const _ of consumed) {
+            // consume
+          }
+        })(),
+      ).resolves.not.toThrow();
+    });
+
     it('should call generateContentStream with the correct parameters', async () => {
       const response = (async function* () {
         yield {

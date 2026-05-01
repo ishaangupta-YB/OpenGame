@@ -798,12 +798,12 @@ export class OpenAIContentConverter {
         parts.push({ text: reasoningText, thought: true });
       }
 
-      // Handle text content
-      if (choice.delta?.content) {
-        if (typeof choice.delta.content === 'string') {
-          parts.push({ text: choice.delta.content });
-        }
-      }
+      // Visible assistant text — some compat layers emit `content` as a string OR
+      // as an array of `{ type: 'text', text }` chunks.
+      this.appendStreamDeltaVisibleContent(
+        parts,
+        choice.delta as ExtendedCompletionChunkDelta,
+      );
 
       // Handle tool calls using the streaming parser
       if (choice.delta?.tool_calls) {
@@ -918,6 +918,39 @@ export class OpenAIContentConverter {
     }
 
     return response;
+  }
+
+  private appendStreamDeltaVisibleContent(
+    parts: Part[],
+    delta: ExtendedCompletionChunkDelta,
+  ): void {
+    const content = (
+      delta as ExtendedCompletionChunkDelta & { content?: unknown }
+    ).content;
+
+    if (content == null) {
+      return;
+    }
+
+    if (typeof content === 'string') {
+      parts.push({ text: content });
+      return;
+    }
+
+    if (Array.isArray(content)) {
+      for (const block of content) {
+        if (
+          block &&
+          typeof block === 'object' &&
+          'type' in block &&
+          (block as { type?: string }).type === 'text' &&
+          'text' in block &&
+          typeof (block as { text?: unknown }).text === 'string'
+        ) {
+          parts.push({ text: (block as { text: string }).text });
+        }
+      }
+    }
   }
 
   /**

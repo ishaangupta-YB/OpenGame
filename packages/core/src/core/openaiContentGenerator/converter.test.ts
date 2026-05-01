@@ -270,6 +270,32 @@ describe('OpenAIContentConverter', () => {
         expect.objectContaining({ text: 'visible text' }),
       );
     });
+
+    it('should convert streaming content when delta.content is a text-part array', () => {
+      const chunk = converter.convertOpenAIChunkToGemini({
+        object: 'chat.completion.chunk',
+        id: 'chunk-2',
+        created: 456,
+        choices: [
+          {
+            index: 0,
+            delta: {
+              content: [
+                { type: 'text', text: 'Hello ' },
+                { type: 'text', text: 'world' },
+              ],
+            },
+            finish_reason: 'stop',
+            logprobs: null,
+          },
+        ],
+        model: 'gpt-test',
+      } as unknown as OpenAI.Chat.ChatCompletionChunk);
+
+      const parts = chunk.candidates?.[0]?.content?.parts;
+      expect(parts?.[0]).toEqual(expect.objectContaining({ text: 'Hello ' }));
+      expect(parts?.[1]).toEqual(expect.objectContaining({ text: 'world' }));
+    });
   });
 
   describe('convertGeminiToolsToOpenAI', () => {
