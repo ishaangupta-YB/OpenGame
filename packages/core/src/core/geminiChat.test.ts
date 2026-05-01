@@ -647,7 +647,7 @@ describe('GeminiChat', () => {
       );
 
       vi.mocked(mockConfig.getContentGeneratorConfig).mockReturnValue({
-        authType: 'openai',
+        authType: AuthType.USE_OPENAI,
         model: '@cf/moonshotai/kimi-k2.6',
         baseUrl: 'https://api.cloudflare.com/client/v4/accounts/abc123/ai/v1',
       });
@@ -687,7 +687,7 @@ describe('GeminiChat', () => {
       );
 
       vi.mocked(mockConfig.getContentGeneratorConfig).mockReturnValue({
-        authType: 'openai',
+        authType: AuthType.USE_OPENAI,
         model: '',
         baseUrl: '',
       });

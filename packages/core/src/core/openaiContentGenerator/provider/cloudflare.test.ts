@@ -108,7 +108,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         repetition_penalty: 1.1,
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
-      const result = provider.buildRequest(original, 'prompt-id') as Record<
+      const result = provider.buildRequest(original, 'prompt-id') as unknown as Record<
         string,
         unknown
       >;
@@ -127,7 +127,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         max_tokens: 4096,
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
-      const result = provider.buildRequest(original, 'prompt-id') as Record<
+      const result = provider.buildRequest(original, 'prompt-id') as unknown as Record<
         string,
         unknown
       >;
@@ -143,7 +143,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         max_completion_tokens: 8192,
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
-      const result = provider.buildRequest(original, 'prompt-id') as Record<
+      const result = provider.buildRequest(original, 'prompt-id') as unknown as Record<
         string,
         unknown
       >;
@@ -165,7 +165,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         ],
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
-      const result = provider.buildRequest(original, 'prompt-id') as Record<
+      const result = provider.buildRequest(original, 'prompt-id') as unknown as Record<
         string,
         unknown
       >;
@@ -190,7 +190,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         ],
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
-      const result = provider.buildRequest(original, 'prompt-id') as Record<
+      const result = provider.buildRequest(original, 'prompt-id') as unknown as Record<
         string,
         unknown
       >;
@@ -224,7 +224,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         ],
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
-      const result = provider.buildRequest(original, 'prompt-id') as Record<
+      const result = provider.buildRequest(original, 'prompt-id') as unknown as Record<
         string,
         unknown
       >;
