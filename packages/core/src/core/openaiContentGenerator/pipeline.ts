@@ -319,12 +319,16 @@ export class ContentGenerationPipeline {
   private buildReasoningConfig(): Record<string, unknown> {
     const reasoning = this.contentGeneratorConfig.reasoning;
 
-    if (reasoning === false) {
+    // Only emit reasoning_effort when the user explicitly opts in. Sending it
+    // unconditionally breaks plain OpenAI gpt-4o (400 "Unrecognized request
+    // argument supplied: reasoning_effort") and is silently ignored by
+    // providers that don't support it.
+    if (!reasoning) {
       return {};
     }
 
     return {
-      reasoning_effort: reasoning?.effort ?? 'medium',
+      reasoning_effort: reasoning.effort ?? 'medium',
     };
   }
 

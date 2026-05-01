@@ -16,6 +16,7 @@ import {
   ModelScopeOpenAICompatibleProvider,
   OpenRouterOpenAICompatibleProvider,
   CloudflareOpenAICompatibleProvider,
+  OpenAIDirectProvider,
   type OpenAICompatibleProvider,
   DefaultOpenAICompatibleProvider,
 } from './provider/index.js';
@@ -29,6 +30,7 @@ export {
   DeepSeekOpenAICompatibleProvider,
   OpenRouterOpenAICompatibleProvider,
   CloudflareOpenAICompatibleProvider,
+  OpenAIDirectProvider,
 } from './provider/index.js';
 
 export { OpenAIContentConverter } from './converter.js';
@@ -95,6 +97,11 @@ export function determineProvider(
       contentGeneratorConfig,
       cliConfig,
     );
+  }
+
+  // Check for OpenAI first-party provider (handles o-series quirks)
+  if (OpenAIDirectProvider.isOpenAIProvider(config)) {
+    return new OpenAIDirectProvider(contentGeneratorConfig, cliConfig);
   }
 
   // Default provider for standard OpenAI-compatible APIs

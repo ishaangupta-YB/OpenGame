@@ -89,12 +89,23 @@ describe('CloudflareOpenAICompatibleProvider', () => {
     });
   });
 
+  describe('getDefaultGenerationConfig', () => {
+    it('does not preset top_p (Workers AI rejects it)', () => {
+      expect(provider.getDefaultGenerationConfig()).toEqual({});
+    });
+  });
+
   describe('buildRequest', () => {
-    it('strips reasoning_effort which Workers AI models do not accept', () => {
+    it('strips every sampling param Workers AI does not document', () => {
       const original = {
         model: '@cf/moonshotai/kimi-k2.6',
         messages: [{ role: 'user', content: 'hi' }],
         reasoning_effort: 'medium',
+        top_p: 0.95,
+        top_k: 20,
+        frequency_penalty: 0.1,
+        presence_penalty: 0.1,
+        repetition_penalty: 1.1,
       } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
 
       const result = provider.buildRequest(original, 'prompt-id') as Record<
@@ -102,6 +113,11 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         unknown
       >;
       expect(result['reasoning_effort']).toBeUndefined();
+      expect(result['top_p']).toBeUndefined();
+      expect(result['top_k']).toBeUndefined();
+      expect(result['frequency_penalty']).toBeUndefined();
+      expect(result['presence_penalty']).toBeUndefined();
+      expect(result['repetition_penalty']).toBeUndefined();
     });
 
     it('renames max_tokens to max_completion_tokens', () => {
@@ -132,13 +148,15 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         unknown
       >;
       expect(result['max_completion_tokens']).toBe(8192);
+      expect(result['max_tokens']).toBeUndefined();
     });
 
-    it('preserves the rest of the request', () => {
+    it('preserves model, messages, stream, tools, temperature', () => {
       const original = {
         model: '@cf/moonshotai/kimi-k2.6',
         messages: [{ role: 'user', content: 'hi' }],
         stream: true,
+        temperature: 0.7,
         tools: [
           {
             type: 'function',
@@ -153,6 +171,7 @@ describe('CloudflareOpenAICompatibleProvider', () => {
       >;
       expect(result['model']).toBe('@cf/moonshotai/kimi-k2.6');
       expect(result['stream']).toBe(true);
+      expect(result['temperature']).toBe(0.7);
       expect((result['tools'] as unknown[]).length).toBe(1);
     });
   });
