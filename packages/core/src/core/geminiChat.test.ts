@@ -599,7 +599,7 @@ describe('GeminiChat', () => {
             {
               content: {
                 role: 'model',
-                parts: [{ thought: 'thinking...' }],
+                parts: [{ thought: true, text: 'thinking...' }],
               },
               finishReason: 'STOP',
             },
@@ -624,6 +624,46 @@ describe('GeminiChat', () => {
           }
         })(),
       ).rejects.toThrow(InvalidStreamError);
+    });
+
+    it('should allow thought-only streams for Cloudflare Kimi K2.6', async () => {
+      const streamWithThoughtOnlyResponse = (async function* () {
+        yield {
+          candidates: [
+            {
+              content: {
+                role: 'model',
+                parts: [{ thought: true, text: 'thinking...' }],
+              },
+              finishReason: 'STOP',
+            },
+          ],
+        } as unknown as GenerateContentResponse;
+      })();
+
+      vi.mocked(mockContentGenerator.generateContentStream).mockResolvedValue(
+        streamWithThoughtOnlyResponse,
+      );
+
+      vi.mocked(mockConfig.getContentGeneratorConfig).mockReturnValue({
+        authType: 'openai',
+        model: '@cf/moonshotai/kimi-k2.6',
+        baseUrl: 'https://api.cloudflare.com/client/v4/accounts/abc123/ai/v1',
+      });
+
+      const stream = await chat.sendMessageStream(
+        '@cf/moonshotai/kimi-k2.6',
+        { message: 'test' },
+        'prompt-id-1',
+      );
+
+      await expect(
+        (async () => {
+          for await (const _ of stream) {
+            // consume stream
+          }
+        })(),
+      ).resolves.not.toThrow();
     });
 
     it('should succeed when there is finish reason and response text', async () => {

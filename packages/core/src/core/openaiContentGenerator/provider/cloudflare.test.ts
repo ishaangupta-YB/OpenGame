@@ -90,13 +90,13 @@ describe('CloudflareOpenAICompatibleProvider', () => {
   });
 
   describe('getDefaultGenerationConfig', () => {
-    it('does not preset top_p (Workers AI rejects it)', () => {
-      expect(provider.getDefaultGenerationConfig()).toEqual({});
+    it('inherits default sampling config (no forced suppression)', () => {
+      expect(provider.getDefaultGenerationConfig()).toEqual({ topP: 0.95 });
     });
   });
 
   describe('buildRequest', () => {
-    it('strips every sampling param Workers AI does not document', () => {
+    it('preserves sampling/reasoning knobs and only normalizes token field names', () => {
       const original = {
         model: '@cf/moonshotai/kimi-k2.6',
         messages: [{ role: 'user', content: 'hi' }],
@@ -112,12 +112,12 @@ describe('CloudflareOpenAICompatibleProvider', () => {
         string,
         unknown
       >;
-      expect(result['reasoning_effort']).toBeUndefined();
-      expect(result['top_p']).toBeUndefined();
-      expect(result['top_k']).toBeUndefined();
-      expect(result['frequency_penalty']).toBeUndefined();
-      expect(result['presence_penalty']).toBeUndefined();
-      expect(result['repetition_penalty']).toBeUndefined();
+      expect(result['reasoning_effort']).toBe('medium');
+      expect(result['top_p']).toBe(0.95);
+      expect(result['top_k']).toBe(20);
+      expect(result['frequency_penalty']).toBe(0.1);
+      expect(result['presence_penalty']).toBe(0.1);
+      expect(result['repetition_penalty']).toBe(1.1);
     });
 
     it('renames max_tokens to max_completion_tokens', () => {

@@ -37,6 +37,7 @@ interface ExtendedCompletionUsage extends OpenAI.CompletionUsage {
 
 interface ExtendedChatCompletionAssistantMessageParam
   extends OpenAI.Chat.ChatCompletionAssistantMessageParam {
+  reasoning?: string | null;
   reasoning_content?: string | null;
 }
 
@@ -46,11 +47,13 @@ type ExtendedChatCompletionMessageParam =
 
 export interface ExtendedCompletionMessage
   extends OpenAI.Chat.ChatCompletionMessage {
+  reasoning?: string | null;
   reasoning_content?: string | null;
 }
 
 export interface ExtendedCompletionChunkDelta
   extends OpenAI.Chat.ChatCompletionChunk.Choice.Delta {
+  reasoning?: string | null;
   reasoning_content?: string | null;
 }
 
@@ -685,8 +688,9 @@ export class OpenAIContentConverter {
     const parts: Part[] = [];
 
     // Handle reasoning content (thoughts)
-    const reasoningText = (choice.message as ExtendedCompletionMessage)
-      .reasoning_content;
+    const reasoningText = this.extractReasoningText(
+      choice.message as ExtendedCompletionMessage,
+    );
     if (reasoningText) {
       parts.push({ text: reasoningText, thought: true });
     }
@@ -787,8 +791,9 @@ export class OpenAIContentConverter {
     if (choice) {
       const parts: Part[] = [];
 
-      const reasoningText = (choice.delta as ExtendedCompletionChunkDelta)
-        .reasoning_content;
+      const reasoningText = this.extractReasoningText(
+        choice.delta as ExtendedCompletionChunkDelta,
+      );
       if (reasoningText) {
         parts.push({ text: reasoningText, thought: true });
       }
@@ -930,6 +935,14 @@ export class OpenAIContentConverter {
       tool_calls: FinishReason.STOP,
     };
     return mapping[openaiReason] || FinishReason.FINISH_REASON_UNSPECIFIED;
+  }
+
+  private extractReasoningText(
+    source: ExtendedCompletionMessage | ExtendedCompletionChunkDelta,
+  ): string | null | undefined {
+    // Cloudflare Kimi K2.6 currently appears in both shapes across deployments:
+    // `reasoning_content` (legacy) and `reasoning` (new).
+    return source.reasoning_content ?? source.reasoning;
   }
 
   private mapGeminiFinishReasonToOpenAI(

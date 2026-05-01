@@ -63,6 +63,33 @@ const INVALID_CONTENT_RETRY_OPTIONS: ContentRetryOptions = {
   maxAttempts: 2, // 1 initial call + 1 retry
   initialDelayMs: 500,
 };
+
+function isCloudflareKimiK26Model(model: string | undefined): boolean {
+  if (!model) {
+    return false;
+  }
+  return model.toLowerCase().includes('@cf/moonshotai/kimi-k2.6');
+}
+
+function isCloudflareWorkersAiBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) {
+    return false;
+  }
+  const normalized = baseUrl.toLowerCase();
+  return (
+    normalized.includes('api.cloudflare.com') && normalized.includes('/ai/v1')
+  );
+}
+
+function isCloudflareKimiK26ThoughtOnlyAllowed(config: Config, model: string) {
+  const contentGeneratorConfig = config.getContentGeneratorConfig();
+  return (
+    isCloudflareWorkersAiBaseUrl(contentGeneratorConfig?.baseUrl) &&
+    (isCloudflareKimiK26Model(model) ||
+      isCloudflareKimiK26Model(contentGeneratorConfig?.model))
+  );
+}
+
 /**
  * Returns true if the response is valid, false otherwise.
  *
@@ -627,7 +654,20 @@ export class GeminiChat {
     // - No finish reason, OR
     // - Empty response text (e.g., only thoughts with no actual content)
     if (!hasToolCall && (!hasFinishReason || !contentText)) {
-      if (!hasFinishReason) {
+      const isCloudflareKimiThoughtOnlyResponse =
+        hasFinishReason &&
+        !contentText &&
+        thoughtText !== '' &&
+        isCloudflareKimiK26ThoughtOnlyAllowed(this.config, model);
+
+      if (isCloudflareKimiThoughtOnlyResponse) {
+        // Lightweight marker for debugging/telemetry correlation.
+        if (this.config.getDebugMode()) {
+          console.warn(
+            `[stream-compat] Allowing thought-only response for Cloudflare Kimi K2.6 (model: ${model}).`,
+          );
+        }
+      } else if (!hasFinishReason) {
         throw new InvalidStreamError(
           'Model stream ended without a finish reason.',
           'NO_FINISH_REASON',

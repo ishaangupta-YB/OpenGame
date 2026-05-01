@@ -5,7 +5,6 @@
  */
 
 import type OpenAI from 'openai';
-import type { GenerateContentConfig } from '@google/genai';
 import { DefaultOpenAICompatibleProvider } from './default.js';
 import type { ContentGeneratorConfig } from '../../contentGenerator.js';
 
@@ -14,18 +13,11 @@ import type { ContentGeneratorConfig } from '../../contentGenerator.js';
  *
  * Base URL pattern: https://api.cloudflare.com/client/v4/accounts/<id>/ai/v1
  *
- * Workers AI's OpenAI compat layer is stricter than most. The Kimi K2.5/K2.6
- * model pages list these accepted parameters and only these:
- *   temperature, max_completion_tokens, tools[], tool_choice,
- *   parallel_tool_calls, response_format, stream
- *
- * Everything OpenGame's pipeline emits beyond that — `top_p`, `top_k`,
- * `frequency_penalty`, `presence_penalty`, `repetition_penalty`, and
- * `reasoning_effort` — is either silently dropped or causes the model to
- * burn its budget on chain-of-thought without producing tool calls or
- * content, surfacing as `InvalidStreamError: Model stream ended with empty
- * response text.`. We strip them. We also rename the deprecated `max_tokens`
- * to `max_completion_tokens` so the model has a real output budget.
+ * Workers AI's compat layer evolves quickly and currently accepts standard
+ * sampling/reasoning knobs for Kimi K2.6 in many deployments. To avoid
+ * dropping potentially useful controls, this provider keeps all request fields
+ * except for one canonicalization that remains broadly required:
+ * `max_tokens` -> `max_completion_tokens`.
  */
 export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleProvider {
   static isCloudflareProvider(config: ContentGeneratorConfig): boolean {
@@ -33,11 +25,6 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
     return (
       baseUrl.includes('api.cloudflare.com') && baseUrl.includes('/ai/v1')
     );
-  }
-
-  override getDefaultGenerationConfig(): GenerateContentConfig {
-    // Don't preset top_p — Workers AI doesn't list it as a supported param.
-    return {};
   }
 
   override buildRequest(
@@ -48,13 +35,6 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
 
     const adapted = { ...baseRequest } as OpenAI.Chat.ChatCompletionCreateParams &
       Record<string, unknown>;
-
-    delete adapted['top_p'];
-    delete adapted['top_k'];
-    delete adapted['frequency_penalty'];
-    delete adapted['presence_penalty'];
-    delete adapted['repetition_penalty'];
-    delete adapted['reasoning_effort'];
 
     if (
       adapted.max_tokens !== undefined &&
