@@ -174,5 +174,58 @@ describe('CloudflareOpenAICompatibleProvider', () => {
       expect(result['temperature']).toBe(0.7);
       expect((result['tools'] as unknown[]).length).toBe(1);
     });
+
+    it('adds explicit auto tool choice and a Kimi tool-call reminder when tools are present', () => {
+      const original = {
+        model: '@cf/moonshotai/kimi-k2.6',
+        messages: [
+          { role: 'system', content: 'Base system prompt.' },
+          { role: 'user', content: 'Build a Snake clone.' },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: { name: 'noop', parameters: { type: 'object' } },
+          },
+        ],
+      } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
+
+      const result = provider.buildRequest(original, 'prompt-id') as Record<
+        string,
+        unknown
+      >;
+      const messages =
+        result['messages'] as OpenAI.Chat.ChatCompletionMessageParam[];
+      const firstMessage = messages[0] as {
+        role?: string;
+        content?: string;
+      } | undefined;
+
+      expect(result['tool_choice']).toBe('auto');
+      expect(firstMessage?.role).toBe('system');
+      expect(firstMessage?.content).toContain('Base system prompt.');
+      expect(firstMessage?.content).toContain('call the tool directly');
+    });
+
+    it('does not overwrite explicit Kimi tool choice', () => {
+      const original = {
+        model: '@cf/moonshotai/kimi-k2.6',
+        messages: [{ role: 'user', content: 'Build a Snake clone.' }],
+        tool_choice: 'required',
+        tools: [
+          {
+            type: 'function',
+            function: { name: 'noop', parameters: { type: 'object' } },
+          },
+        ],
+      } as unknown as OpenAI.Chat.ChatCompletionCreateParams;
+
+      const result = provider.buildRequest(original, 'prompt-id') as Record<
+        string,
+        unknown
+      >;
+
+      expect(result['tool_choice']).toBe('required');
+    });
   });
 });

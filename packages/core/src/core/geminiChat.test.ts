@@ -141,6 +141,7 @@ describe('GeminiChat', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
+    vi.unstubAllEnvs();
   });
 
   describe('sendMessageStream', () => {
@@ -653,6 +654,51 @@ describe('GeminiChat', () => {
 
       const stream = await chat.sendMessageStream(
         '@cf/moonshotai/kimi-k2.6',
+        { message: 'test' },
+        'prompt-id-1',
+      );
+
+      await expect(
+        (async () => {
+          for await (const _ of stream) {
+            // consume stream
+          }
+        })(),
+      ).resolves.not.toThrow();
+    });
+
+    it('should allow Cloudflare Kimi thought-only streams when endpoint details come from env', async () => {
+      const streamWithThoughtOnlyResponse = (async function* () {
+        yield {
+          candidates: [
+            {
+              content: {
+                role: 'model',
+                parts: [{ thought: true, text: 'thinking...' }],
+              },
+              finishReason: 'STOP',
+            },
+          ],
+        } as unknown as GenerateContentResponse;
+      })();
+
+      vi.mocked(mockContentGenerator.generateContentStream).mockResolvedValue(
+        streamWithThoughtOnlyResponse,
+      );
+
+      vi.mocked(mockConfig.getContentGeneratorConfig).mockReturnValue({
+        authType: 'openai',
+        model: '',
+        baseUrl: '',
+      });
+      vi.stubEnv(
+        'OPENAI_BASE_URL',
+        'https://api.cloudflare.com/client/v4/accounts/abc123/ai/v1',
+      );
+      vi.stubEnv('OPENAI_MODEL', '@cf/moonshotai/kimi-k2.6');
+
+      const stream = await chat.sendMessageStream(
+        'coder-model',
         { message: 'test' },
         'prompt-id-1',
       );

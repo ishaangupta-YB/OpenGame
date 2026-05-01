@@ -20,6 +20,42 @@ Also, Cloudflare reasoning field shape is drifting across deployments:
 
 ## What Was Changed
 
+## Follow-up After EC2 Still Showed NO_RESPONSE_TEXT
+
+The first Kimi thought-only allowance required both the Cloudflare base URL and
+Kimi model to be visible through `Config.getContentGeneratorConfig()`. The EC2
+run still hit `NO_RESPONSE_TEXT`, so the guard was widened to also inspect:
+
+- runtime `model` passed into the stream processor
+- configured model/base URL
+- `OPENAI_MODEL`
+- `OPENAI_BASE_URL`
+- `OPENGAME_REASONING_MODEL`
+- `OPENGAME_REASONING_BASE_URL`
+
+This matters because the EC2 process may resolve provider details through env
+vars or auth settings differently from the local unit-test mock.
+
+The later EC2 output showed a deeper problem: Kimi was not just returning an
+empty final assistant message; it was narrating intended tool use:
+
+```text
+Let me start by classifying.
+[API Error: Model stream ended with empty response text.]
+```
+
+That means the model thought about calling `classify_game_type`, but never
+emitted the actual OpenAI `tool_calls` delta. To address the actual failure
+mode, Cloudflare Kimi requests with tools now get:
+
+- explicit `tool_choice: "auto"` when no tool choice was already set
+- a scoped system reminder telling Kimi to emit the tool call directly instead
+  of describing or promising a tool call in text
+
+This is deliberately limited to Cloudflare Kimi K2.6 requests with tools.
+Plain OpenAI, non-Kimi Cloudflare models, and requests without tools are left
+unchanged.
+
 ### 1) Cloudflare provider policy aligned to minimal normalization
 File:
 - `packages/core/src/core/openaiContentGenerator/provider/cloudflare.ts`
@@ -30,9 +66,17 @@ Changes:
 - Kept canonicalization:
   - `max_tokens -> max_completion_tokens`
 - Removed Cloudflare-specific default override (`getDefaultGenerationConfig(): {}`), so default sampling config is no longer forcibly suppressed.
+- For Kimi K2.6 tool requests, adds `tool_choice: "auto"` unless the caller set
+  an explicit `tool_choice`.
+- For Kimi K2.6 tool requests, appends a provider-scoped tool-call reminder to
+  the system prompt so the model calls tools instead of narrating intended tool
+  calls.
 
 Why:
 - Current Cloudflare K2.6 endpoint in this environment accepts those knobs and does not require blanket stripping.
+- Live EC2 output showed Kimi was reasoning about the tool step but not emitting
+  a tool call, so request shaping must nudge tool-call emission, not only parse
+  reasoning fields.
 
 ### 2) Parser compatibility for both reasoning field names
 File:
@@ -54,6 +98,11 @@ File:
 
 Changes:
 - Added Cloudflare+K2.6 detector helpers.
+- Detector now accepts Kimi model spellings containing:
+  - `@cf/moonshotai/kimi-k2.6`
+  - `moonshotai/kimi-k2.6`
+  - `kimi-k2.6`
+- Detector now checks configured values and env fallbacks.
 - In stream validation, if all are true:
   - finish reason exists,
   - no tool call,

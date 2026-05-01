@@ -68,7 +68,12 @@ function isCloudflareKimiK26Model(model: string | undefined): boolean {
   if (!model) {
     return false;
   }
-  return model.toLowerCase().includes('@cf/moonshotai/kimi-k2.6');
+  const normalized = model.toLowerCase();
+  return (
+    normalized.includes('@cf/moonshotai/kimi-k2.6') ||
+    normalized.includes('moonshotai/kimi-k2.6') ||
+    normalized.includes('kimi-k2.6')
+  );
 }
 
 function isCloudflareWorkersAiBaseUrl(baseUrl: string | undefined): boolean {
@@ -83,10 +88,21 @@ function isCloudflareWorkersAiBaseUrl(baseUrl: string | undefined): boolean {
 
 function isCloudflareKimiK26ThoughtOnlyAllowed(config: Config, model: string) {
   const contentGeneratorConfig = config.getContentGeneratorConfig();
+  const baseUrls = [
+    contentGeneratorConfig?.baseUrl,
+    process.env['OPENAI_BASE_URL'],
+    process.env['OPENGAME_REASONING_BASE_URL'],
+  ];
+  const models = [
+    model,
+    contentGeneratorConfig?.model,
+    process.env['OPENAI_MODEL'],
+    process.env['OPENGAME_REASONING_MODEL'],
+  ];
+
   return (
-    isCloudflareWorkersAiBaseUrl(contentGeneratorConfig?.baseUrl) &&
-    (isCloudflareKimiK26Model(model) ||
-      isCloudflareKimiK26Model(contentGeneratorConfig?.model))
+    baseUrls.some(isCloudflareWorkersAiBaseUrl) &&
+    models.some(isCloudflareKimiK26Model)
   );
 }
 

@@ -8,6 +8,9 @@ import type OpenAI from 'openai';
 import { DefaultOpenAICompatibleProvider } from './default.js';
 import type { ContentGeneratorConfig } from '../../contentGenerator.js';
 
+const KIMI_TOOL_CALL_REMINDER =
+  'When the next step requires a tool, call the tool directly in this response. Do not describe, announce, or promise a tool call in text instead of emitting it.';
+
 /**
  * Provider for Cloudflare Workers AI's OpenAI-compatible endpoint.
  *
@@ -27,6 +30,60 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
     );
   }
 
+  private static isKimiK26Model(model: string | undefined): boolean {
+    if (!model) {
+      return false;
+    }
+    const normalized = model.toLowerCase();
+    return (
+      normalized.includes('@cf/moonshotai/kimi-k2.6') ||
+      normalized.includes('moonshotai/kimi-k2.6') ||
+      normalized.includes('kimi-k2.6')
+    );
+  }
+
+  private static hasTools(
+    request: OpenAI.Chat.ChatCompletionCreateParams & Record<string, unknown>,
+  ): boolean {
+    return Array.isArray(request.tools) && request.tools.length > 0;
+  }
+
+  private static addKimiToolCallReminder(
+    messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  ): OpenAI.Chat.ChatCompletionMessageParam[] {
+    const alreadyHasReminder = messages.some(
+      (message) =>
+        message.role === 'system' &&
+        typeof message.content === 'string' &&
+        message.content.includes(KIMI_TOOL_CALL_REMINDER),
+    );
+    if (alreadyHasReminder) {
+      return messages;
+    }
+
+    const [firstMessage, ...remainingMessages] = messages;
+
+    if (firstMessage?.role === 'system') {
+      if (typeof firstMessage.content === 'string') {
+        return [
+          {
+            ...firstMessage,
+            content: `${firstMessage.content}\n\n${KIMI_TOOL_CALL_REMINDER}`,
+          },
+          ...remainingMessages,
+        ];
+      }
+    }
+
+    return [
+      {
+        role: 'system',
+        content: KIMI_TOOL_CALL_REMINDER,
+      },
+      ...messages,
+    ];
+  }
+
   override buildRequest(
     request: OpenAI.Chat.ChatCompletionCreateParams,
     userPromptId: string,
@@ -44,6 +101,21 @@ export class CloudflareOpenAICompatibleProvider extends DefaultOpenAICompatibleP
       adapted.max_completion_tokens = adapted.max_tokens;
     }
     delete (adapted as { max_tokens?: number | null }).max_tokens;
+
+    if (
+      CloudflareOpenAICompatibleProvider.isKimiK26Model(
+        adapted.model as string | undefined,
+      ) &&
+      CloudflareOpenAICompatibleProvider.hasTools(adapted)
+    ) {
+      if (adapted.tool_choice === undefined) {
+        adapted.tool_choice = 'auto';
+      }
+      adapted.messages =
+        CloudflareOpenAICompatibleProvider.addKimiToolCallReminder(
+          adapted.messages,
+        );
+    }
 
     return adapted;
   }
