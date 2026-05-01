@@ -924,9 +924,10 @@ export class OpenAIContentConverter {
     parts: Part[],
     delta: ExtendedCompletionChunkDelta,
   ): void {
-    const content = (
-      delta as ExtendedCompletionChunkDelta & { content?: unknown }
-    ).content;
+    // Read as unknown: upstream `Delta.content` is typed as string | null, but some
+    // OpenAI-compat providers send `{ type:'text', text }[]`; without `unknown`,
+    // TypeScript narrows the array branch to `never`.
+    const content: unknown = (delta as unknown as { content?: unknown }).content;
 
     if (content == null) {
       return;
