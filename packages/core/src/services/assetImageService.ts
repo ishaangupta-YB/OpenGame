@@ -536,6 +536,123 @@ export class OpenAICompatImageService extends BaseService {
   }
 }
 
+// ============== Cloudflare Workers AI Image Service ==============
+//
+// Talks to Cloudflare Workers AI's native image-generation endpoint:
+//   POST {baseUrl}/{model}      Content-Type: multipart/form-data
+//                               fields: prompt, width, height, steps
+//   Response: binary PNG (or, on some deployments, a JSON envelope with a
+//             base64 image — we handle both shapes).
+//
+// `baseUrl` is expected to look like:
+//   https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/run
+//
+// `model` is the full Workers AI identifier (e.g.
+// "@cf/black-forest-labs/flux-2-klein-9b"). The class is generic — it
+// works with any @cf/* image model that follows this contract; the user
+// just changes OPENGAME_IMAGE_MODEL.
+//
+// Cloudflare Workers AI has no public image-edit endpoint today, so
+// editImage falls back to a fresh text-to-image generation, mirroring
+// OpenAICompatImageService.
+
+const CLOUDFLARE_DEFAULT_STEPS = 25;
+
+export class CloudflareImageService extends BaseService {
+  private config: ImageModelConfig;
+
+  constructor(config: ImageModelConfig) {
+    super();
+    this.config = config;
+  }
+
+  async generateImage(
+    prompt: string,
+    size: string = '1024*1024',
+  ): Promise<string> {
+    this.log(
+      `Generating image via Cloudflare Workers AI (${this.config.modelNameGeneration}): ${prompt.substring(0, 50)}...`,
+    );
+
+    const { width, height } = parseImageSize(size);
+    const url = `${this.config.baseUrl}/${this.config.modelNameGeneration}`;
+
+    const form = new FormData();
+    form.append('prompt', prompt);
+    form.append('width', String(width));
+    form.append('height', String(height));
+    form.append('steps', String(CLOUDFLARE_DEFAULT_STEPS));
+
+    // Don't set Content-Type manually — fetch() populates the multipart
+    // boundary automatically when body is FormData.
+    const response = await this.fetchWithRetry(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: form,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(
+        `Cloudflare Workers AI image API failed: ${response.status} - ${errorBody}`,
+      );
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+
+    // Newer Workers AI responses are JSON-wrapped. Older / direct deployments
+    // return the raw image bytes. Cover both.
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as {
+        result?: { image?: string };
+        image?: string;
+      };
+      const base64 = data.result?.image ?? data.image;
+      if (!base64) {
+        throw new Error(
+          'Cloudflare Workers AI image API returned JSON without an image field',
+        );
+      }
+      return `data:image/png;base64,${base64}`;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  }
+
+  async editImage(
+    _referenceImageUrl: string,
+    prompt: string,
+    _previousFrameUrl?: string | null,
+  ): Promise<string> {
+    this.log(
+      'Cloudflare Workers AI does not expose an image-edit endpoint; falling back to text-to-image with a style hint. Use tongyi/doubao for true I2I.',
+      'warn',
+    );
+    return this.generateImage(`${prompt} (matching reference style)`);
+  }
+}
+
+function parseImageSize(size: string): { width: number; height: number } {
+  // Accept both Tongyi-style `1024*1024` and OpenAI-style `1024x1024`.
+  const parts = size.split(/[*x]/);
+  const width = Number.parseInt(parts[0] ?? '', 10);
+  const height = Number.parseInt(parts[1] ?? '', 10);
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    throw new Error(
+      `Invalid image size "${size}". Expected WIDTHxHEIGHT or WIDTH*HEIGHT (e.g. 1024x1024).`,
+    );
+  }
+  return { width, height };
+}
+
 // ============== Image Service Interface ==============
 
 export interface IImageService {
@@ -555,6 +672,8 @@ export function createImageService(config: ImageModelConfig): IImageService {
       return new DoubaoImageService(config);
     case 'openai-compat':
       return new OpenAICompatImageService(config);
+    case 'cloudflare':
+      return new CloudflareImageService(config);
     case 'tongyi':
     default:
       return new TongyiImageService(config);

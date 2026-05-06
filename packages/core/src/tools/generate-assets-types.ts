@@ -8,7 +8,7 @@
 export interface ModelConfig {
   apiKey: string;
   baseUrl: string;
-  modelType: 'tongyi' | 'doubao' | 'openai-compat';
+  modelType: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
 }
 
 export interface ImageModelConfig extends ModelConfig {
@@ -92,7 +92,7 @@ export interface GenerateAssetsParams {
   style_anchor: string;
   composition_env?: string;
   output_dir_name?: string;
-  model_type?: 'tongyi' | 'doubao' | 'openai-compat';
+  model_type?: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
   assets: AssetRequest[];
 }
 

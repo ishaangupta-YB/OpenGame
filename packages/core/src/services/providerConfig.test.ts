@@ -111,6 +111,41 @@ describe('resolveProviderConfig', () => {
     expect(cfg.model).toBe('dall-e-3');
   });
 
+  it('accepts cloudflare as a provider name', () => {
+    const cfg = resolveProviderConfig('image', undefined, {
+      OPENGAME_IMAGE_PROVIDER: 'cloudflare',
+      OPENGAME_IMAGE_API_KEY: 'cf-token',
+      OPENGAME_IMAGE_BASE_URL:
+        'https://api.cloudflare.com/client/v4/accounts/abc/ai/run',
+      OPENGAME_IMAGE_MODEL: '@cf/black-forest-labs/flux-2-klein-9b',
+    });
+    expect(cfg.provider).toBe('cloudflare');
+    expect(cfg.apiKey).toBe('cf-token');
+    expect(cfg.baseUrl).toBe(
+      'https://api.cloudflare.com/client/v4/accounts/abc/ai/run',
+    );
+    expect(cfg.model).toBe('@cf/black-forest-labs/flux-2-klein-9b');
+  });
+
+  it('requires a base URL and model for cloudflare', () => {
+    expect(() =>
+      resolveProviderConfig('image', undefined, {
+        OPENGAME_IMAGE_PROVIDER: 'cloudflare',
+        OPENGAME_IMAGE_API_KEY: 'cf-token',
+      }),
+    ).toThrow(/base URL/);
+  });
+
+  it('lists cloudflare in the missing-provider error hint', () => {
+    try {
+      resolveProviderConfig('image', undefined, {});
+      throw new Error('expected resolveProviderConfig to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(MissingProviderConfigError);
+      expect((error as Error).message).toMatch(/cloudflare/);
+    }
+  });
+
   it('rejects an unknown provider name in env', () => {
     // Unknown providers are ignored and fall through to legacy inference.
     // With no legacy key set, that means we hit MissingProviderConfigError.

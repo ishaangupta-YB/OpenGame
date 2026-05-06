@@ -47,12 +47,14 @@ const IMAGE_EDIT_DEFAULTS: Record<ProviderName, string | undefined> = {
   tongyi: 'wanx2.1-imageedit',
   doubao: 'doubao-seedream-4-0-250828',
   'openai-compat': undefined, // falls back to the same gen model
+  cloudflare: undefined, // CF Workers AI has no I2I model in the OpenGame shape today
 };
 
 const VIDEO_T2V_DEFAULTS: Record<ProviderName, string | undefined> = {
   tongyi: 'wan2.5-t2v-preview',
   doubao: 'doubao-seedance-1-0-pro-250528',
   'openai-compat': undefined,
+  cloudflare: undefined, // CF Workers AI does not host T2V models
 };
 
 // ============== Model Router ==============
@@ -283,7 +285,7 @@ function createDisabledAudioService(): IAudioService {
  */
 export function createModelRouter(
   options: {
-    modelType?: 'tongyi' | 'doubao' | 'openai-compat';
+    modelType?: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
     providers?: OpenGameProvidersSettings;
   } = {},
 ): ModelRouter {

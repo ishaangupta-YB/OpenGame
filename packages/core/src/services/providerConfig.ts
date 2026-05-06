@@ -37,7 +37,7 @@
 
 export type Modality = 'reasoning' | 'image' | 'video' | 'audio';
 
-export type ProviderName = 'tongyi' | 'doubao' | 'openai-compat';
+export type ProviderName = 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
 
 export interface ResolvedProviderConfig {
   /** Which provider family this modality talks to. */
@@ -186,7 +186,12 @@ function trimSlashes(url: string): string {
 }
 
 function isProviderName(value: unknown): value is ProviderName {
-  return value === 'tongyi' || value === 'doubao' || value === 'openai-compat';
+  return (
+    value === 'tongyi' ||
+    value === 'doubao' ||
+    value === 'openai-compat' ||
+    value === 'cloudflare'
+  );
 }
 
 /**
@@ -223,7 +228,7 @@ export function resolveProviderConfig(
   if (!provider) {
     throw new MissingProviderConfigError(
       modality,
-      `Set ${envName(modality, 'PROVIDER')} to one of "tongyi", "doubao", or "openai-compat", ` +
+      `Set ${envName(modality, 'PROVIDER')} to one of "tongyi", "doubao", "openai-compat", or "cloudflare", ` +
         `or add an "openGame.providers.${modality}.provider" entry to your settings.json.`,
     );
   }

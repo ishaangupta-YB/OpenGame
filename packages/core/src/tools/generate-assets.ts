@@ -993,7 +993,7 @@ export class GenerateAssetsTool extends BaseDeclarativeTool<
           },
           model_type: {
             type: 'string',
-            enum: ['tongyi', 'doubao', 'openai-compat'],
+            enum: ['tongyi', 'doubao', 'openai-compat', 'cloudflare'],
             description:
               'Optional hint for the asset-generation provider family. ' +
               'Most users should configure providers via env vars or settings.json instead — ' +

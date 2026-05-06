@@ -1218,25 +1218,25 @@ const SETTINGS_SCHEMA = {
         default: undefined as
           | {
               reasoning?: {
-                provider?: 'tongyi' | 'doubao' | 'openai-compat';
+                provider?: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
                 apiKey?: string;
                 baseUrl?: string;
                 model?: string;
               };
               image?: {
-                provider?: 'tongyi' | 'doubao' | 'openai-compat';
+                provider?: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
                 apiKey?: string;
                 baseUrl?: string;
                 model?: string;
               };
               video?: {
-                provider?: 'tongyi' | 'doubao' | 'openai-compat';
+                provider?: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
                 apiKey?: string;
                 baseUrl?: string;
                 model?: string;
               };
               audio?: {
-                provider?: 'tongyi' | 'doubao' | 'openai-compat';
+                provider?: 'tongyi' | 'doubao' | 'openai-compat' | 'cloudflare';
                 apiKey?: string;
                 baseUrl?: string;
                 model?: string;

@@ -9,6 +9,7 @@ import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
 import { ToolNames, ToolDisplayNames } from './tool-names.js';
 import { resolveProviderConfig } from '../services/providerConfig.js';
+import { adaptCloudflareKimiChatRequest } from '../services/cloudflareKimiAdapter.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -1170,7 +1171,7 @@ List which tower types are available in each level. Early levels may restrict to
     userPrompt: string,
     signal: AbortSignal,
   ): Promise<string> {
-    const payload = {
+    const payload: Record<string, unknown> = {
       model: this.modelConfig.modelName,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -1181,6 +1182,14 @@ List which tower types are available in each level. Early levels may restrict to
       max_tokens: 10000,
       stream: false,
     };
+
+    adaptCloudflareKimiChatRequest(
+      payload,
+      this.modelConfig.baseUrl,
+      this.modelConfig.modelName,
+      // GDD output can be long; give Kimi room even with thinking off.
+      { minCompletionTokens: 10000 },
+    );
 
     const response = await fetch(
       `${this.modelConfig.baseUrl}/chat/completions`,

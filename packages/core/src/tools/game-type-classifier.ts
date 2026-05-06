@@ -9,6 +9,7 @@ import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
 import { ToolNames, ToolDisplayNames } from './tool-names.js';
 import { resolveProviderConfig } from '../services/providerConfig.js';
+import { adaptCloudflareKimiChatRequest } from '../services/cloudflareKimiAdapter.js';
 
 export interface GameTypeClassifierParams {
   /**
@@ -210,7 +211,7 @@ Remember: Think about GRAVITY, PERSPECTIVE, and MOVEMENT TYPE. Output JSON only.
     userPrompt: string,
     signal: AbortSignal,
   ): Promise<string> {
-    const payload = {
+    const payload: Record<string, unknown> = {
       model: this.modelConfig.modelName,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -220,6 +221,12 @@ Remember: Think about GRAVITY, PERSPECTIVE, and MOVEMENT TYPE. Output JSON only.
       max_tokens: 500,
       stream: false,
     };
+
+    adaptCloudflareKimiChatRequest(
+      payload,
+      this.modelConfig.baseUrl,
+      this.modelConfig.modelName,
+    );
 
     const response = await fetch(
       `${this.modelConfig.baseUrl}/chat/completions`,

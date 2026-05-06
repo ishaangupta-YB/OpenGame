@@ -28,11 +28,19 @@ the interactive `/auth` command.
 | `tongyi`        | Aliyun DashScope (Wan/Qwen family).                                                                      | reasoning, image, video, audio |
 | `doubao`        | Volcengine ARK (Doubao Seedream/Seedance family).                                                        | reasoning, image, video, audio |
 | `openai-compat` | Any endpoint speaking the OpenAI REST shape (OpenAI, OpenRouter, Together, fal, Stability proxies, ...). | reasoning, image, audio        |
+| `cloudflare`    | Cloudflare Workers AI native image endpoints (Flux family and any other `@cf/*` image model).            | image                          |
 
 > **Note.** `openai-compat` is intentionally **not** wired up for video,
 > because there is no stable OpenAI-shaped public video API today
 > (Sora and Veo are not part of that surface). If you select it for
 > `OPENGAME_VIDEO_PROVIDER` you'll get a clear error.
+>
+> **Note.** `cloudflare` covers only the **image** modality, and only the
+> native Workers AI endpoint (multipart `…/ai/run/<model>`). For Cloudflare-
+> hosted **chat** models like Kimi K2.6, point the main agent's `OPENAI_*`
+> variables at the Workers-AI **OpenAI-compatible** endpoint
+> (`…/ai/v1`) — the agent runtime auto-detects this base-URL pattern and
+> applies the Workers-AI-specific quirks. See the dedicated example below.
 
 ---
 
@@ -41,10 +49,10 @@ the interactive `/auth` command.
 Each modality reads four environment variables:
 
 ```bash
-OPENGAME_<MODALITY>_PROVIDER   # tongyi | doubao | openai-compat
+OPENGAME_<MODALITY>_PROVIDER   # tongyi | doubao | openai-compat | cloudflare
 OPENGAME_<MODALITY>_API_KEY    # Bearer token sent to the provider
-OPENGAME_<MODALITY>_BASE_URL   # required for openai-compat; optional override otherwise
-OPENGAME_<MODALITY>_MODEL      # required for openai-compat; optional override otherwise
+OPENGAME_<MODALITY>_BASE_URL   # required for openai-compat and cloudflare; optional override otherwise
+OPENGAME_<MODALITY>_MODEL      # required for openai-compat and cloudflare; optional override otherwise
 ```
 
 Where `<MODALITY>` is one of `REASONING`, `IMAGE`, `VIDEO`, `AUDIO`.
@@ -100,6 +108,29 @@ export OPENGAME_IMAGE_API_KEY=$FAL_KEY
 export OPENGAME_IMAGE_BASE_URL=https://fal.run/openai/v1
 export OPENGAME_IMAGE_MODEL=fal-ai/flux/dev
 ```
+
+### Example: Cloudflare Workers AI (Kimi K2.6 chat + Flux 2 Klein 9B image)
+
+The Cloudflare Workers AI account ID is embedded in the base URLs. The two
+endpoints use **different paths** — chat goes through the OpenAI-compatible
+`/ai/v1` surface, image goes through the native `/ai/run` surface — but both
+use the same API token.
+
+```bash
+# Chat / main agent (OpenAI-compat surface; auto-detected by base-URL pattern)
+export OPENAI_API_KEY=$CF_API_TOKEN
+export OPENAI_BASE_URL=https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/ai/v1
+export OPENAI_MODEL=@cf/moonshotai/kimi-k2.6
+
+# Image (native Workers AI surface; multipart/form-data)
+export OPENGAME_IMAGE_PROVIDER=cloudflare
+export OPENGAME_IMAGE_API_KEY=$CF_API_TOKEN
+export OPENGAME_IMAGE_BASE_URL=https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/ai/run
+export OPENGAME_IMAGE_MODEL=@cf/black-forest-labs/flux-2-klein-9b
+```
+
+The `cloudflare` image provider is **generic** — swap `OPENGAME_IMAGE_MODEL`
+to any `@cf/<vendor>/<name>` image model and the request shape stays the same.
 
 A copy-paste template for all variables lives at the repository root in
 [`.env.example`](../../../.env.example).

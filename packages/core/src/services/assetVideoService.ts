@@ -501,6 +501,13 @@ export function createVideoService(config: VideoModelConfig): IVideoService {
           'Set OPENGAME_VIDEO_PROVIDER to "tongyi" or "doubao", or skip animation/audio-from-video ' +
           'generation.',
       );
+    case 'cloudflare':
+      throw new Error(
+        'OpenGame video generation does not support the "cloudflare" provider — ' +
+          'Cloudflare Workers AI does not host text-to-video / image-to-video models in the ' +
+          'OpenGame shape today. Set OPENGAME_VIDEO_PROVIDER to "tongyi" or "doubao", or leave ' +
+          'video unset to skip animation generation.',
+      );
     case 'tongyi':
     default:
       return new TongyiVideoService(config);

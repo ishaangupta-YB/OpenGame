@@ -9,6 +9,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { BaseService } from './assetBaseService.js';
+import { adaptCloudflareKimiChatRequest } from './cloudflareKimiAdapter.js';
 import type {
   AudioModelConfig,
   AudioRequest,
@@ -613,7 +614,7 @@ export class OpenAICompatAudioService extends BaseService {
       .replace('{tempo}', request.tempo || 'medium')
       .replace('{description}', request.description);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       model: this.config.modelNameChat,
       messages: [
         { role: 'system', content: ABC_SYSTEM_PROMPT },
@@ -622,6 +623,12 @@ export class OpenAICompatAudioService extends BaseService {
       max_tokens: this.config.maxTokens || 2048,
       temperature: 1.5,
     };
+
+    adaptCloudflareKimiChatRequest(
+      payload,
+      this.config.baseUrl,
+      this.config.modelNameChat,
+    );
 
     const response = await this.fetchWithRetry(url, {
       method: 'POST',
@@ -685,6 +692,13 @@ export function createAudioService(config: AudioModelConfig): IAudioService {
       return new DoubaoAudioService(config);
     case 'openai-compat':
       return new OpenAICompatAudioService(config);
+    case 'cloudflare':
+      throw new Error(
+        'OpenGame audio generation does not support the "cloudflare" provider — ' +
+          'we generate ABC notation via a chat model and Cloudflare Workers AI is not ' +
+          'configured here. Set OPENGAME_AUDIO_PROVIDER to "tongyi", "doubao", or ' +
+          '"openai-compat", or leave audio unset to use the procedural fallback.',
+      );
     case 'tongyi':
     default:
       return new TongyiAudioService(config);
